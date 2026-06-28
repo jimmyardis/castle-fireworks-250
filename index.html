@@ -453,10 +453,12 @@
     lastTime = now;
     const fdt = dt * 60; // frame-normalized factor (1.0 == 60fps step)
 
-    // Trails: fade the whole canvas slightly instead of clearing -> motion blur glow.
-    ctx.globalCompositeOperation = "source-over";
+    // Trails: fade by ERASING canvas alpha (destination-out), not by painting
+    // black. This keeps the canvas transparent over the photo while leaving a
+    // fading motion-blur glow behind moving particles.
+    ctx.globalCompositeOperation = "destination-out";
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillStyle = "rgba(0,0,0,0.30)";
     ctx.fillRect(0, 0, W, H);
 
     ctx.globalCompositeOperation = "lighter";
@@ -628,20 +630,47 @@
   // ----- Sound (WebAudio synth pop, default OFF) --------------------------
   let soundOn = false;
   let audioCtx = null;
+  // Synthesized firework explosion: a filtered white-noise burst (the "crack")
+  // layered over a low sine thump (the "boom"). No audio files.
   function pop() {
     if (!soundOn || !audioCtx) return;
     const now = audioCtx.currentTime;
+    const dur = rand(0.35, 0.55);
+
+    // --- noise crack ---
+    const n = Math.floor(audioCtx.sampleRate * dur);
+    const buffer = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < n; i++) {
+      // white noise with a fast exponential-ish amplitude decay
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.2);
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const nf = audioCtx.createBiquadFilter();
+    nf.type = "lowpass";
+    nf.frequency.setValueAtTime(rand(1600, 2400), now);
+    nf.frequency.exponentialRampToValueAtTime(180, now + dur);
+    const ng = audioCtx.createGain();
+    ng.gain.setValueAtTime(0.0001, now);
+    ng.gain.exponentialRampToValueAtTime(0.45, now + 0.008);
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    noise.connect(nf).connect(ng).connect(audioCtx.destination);
+    noise.start(now);
+    noise.stop(now + dur);
+
+    // --- low boom ---
     const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(rand(380, 620), now);
-    osc.frequency.exponentialRampToValueAtTime(rand(90, 160), now + 0.18);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    osc.connect(gain).connect(audioCtx.destination);
+    const og = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(rand(85, 110), now);
+    osc.frequency.exponentialRampToValueAtTime(42, now + 0.3);
+    og.gain.setValueAtTime(0.0001, now);
+    og.gain.exponentialRampToValueAtTime(0.4, now + 0.02);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+    osc.connect(og).connect(audioCtx.destination);
     osc.start(now);
-    osc.stop(now + 0.24);
+    osc.stop(now + 0.4);
   }
   soundBtn.addEventListener("click", (e) => {
     e.stopPropagation();
