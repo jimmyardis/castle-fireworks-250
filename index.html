@@ -155,13 +155,12 @@
   const GRAVITY = 0.06;            // per-frame at 60fps baseline (scaled by dt)
   const AIR_DRAG = 0.986;
 
-  // Theme palettes: reds, whites, blues, golds
+  // Theme palettes: blue & white only
   const PALETTES = [
-    ["#ff3b3b", "#ff6b6b", "#ffd0d0"],         // reds
-    ["#ffffff", "#dfe8ff", "#cfe0ff"],         // whites
     ["#3b6bff", "#6b9bff", "#a9c6ff"],         // blues
-    ["#ffd23b", "#ffe27a", "#fff0b0"],         // golds
-    ["#ff3b3b", "#ffffff", "#3b6bff"],         // RWB mix
+    ["#ffffff", "#dfe8ff", "#cfe0ff"],         // whites
+    ["#1e4fff", "#ffffff", "#7aa6ff"],         // blue/white mix
+    ["#2b5cff", "#bcd2ff", "#ffffff"],         // blue/white mix
   ];
 
   // ----- Canvas setup ------------------------------------------------------
@@ -190,10 +189,10 @@
   const hint = document.getElementById("hint");
 
   const SCENES = {
-    // Castle is a portrait shot — anchor it to the top so the palmetto flag and
-    // tower stay in frame on wide screens, leaving sky above for the fireworks.
-    lawn:  { src: "castle-lawn.jpg",  label: "🏰 Castle", next: "water", size: "cover", pos: "50% 0%" },
-    water: { src: "castle-water.jpg", label: "🌊 Water",  next: "lawn",  size: "cover", pos: "50% 50%" },
+    // Castle is a portrait shot — use "contain" so the WHOLE castle is visible;
+    // the twilight gradient behind fills the sides and reads as more open sky.
+    lawn:  { src: "castle-lawn.jpg",  label: "🏰 Castle", next: "water", size: "contain", pos: "50% 50%" },
+    water: { src: "castle-water.jpg", label: "🌊 Water",  next: "lawn",  size: "cover",   pos: "50% 50%" },
   };
   const loaded = { "castle-lawn.jpg": null, "castle-water.jpg": null };
   let missingCount = 0;
@@ -278,7 +277,6 @@
       trail: [],
       sound: opts.sound !== false,
     });
-    if (opts.sound !== false) whistle(); // rising whistle as the rocket climbs
   }
 
   function burst(x, y, palette, count, withCrackle) {
@@ -377,7 +375,7 @@
     const totalW = scaled.reduce((s, d) => s + d.w, 0) + gap * (scaled.length - 1);
     let cursorX = (W - totalW) / 2;
     const topY = Math.max(28, H * 0.12);
-    const gold = ["#ffd23b", "#ffe27a", "#fff0b0", "#ffffff"];
+    const txtColors = ["#ffffff", "#dfe8ff", "#6b9bff", "#a9c6ff"]; // blue & white
 
     const ordered = [];
     for (const d of scaled) {
@@ -385,7 +383,7 @@
         ordered.push({
           tx: cursorX + (p.x - d.g.minX) * d.scale,
           ty: topY + (p.y - d.g.minY) * d.scale,
-          color: pick(gold),
+          color: pick(txtColors),
           size: rand(1.9, 2.9),
         });
       }
@@ -409,7 +407,6 @@
       holdT: 0, holdDur: 1.2,
       sideTimer: 0.25,
     };
-    whistle(); // opening whoosh
   }
 
   // A tiny sparkle "pop" left where a point of the number was just written.
@@ -434,7 +431,7 @@
 
     if (fs.phase === "write") {
       // Rapid-fire: reveal queued points in order, a few per frame, each with a
-      // little sparkle + occasional crack/whistle so you watch 2, then 5, then 0
+      // little sparkle + occasional crack so you watch 2, then 5, then 0
       // get drawn across the sky.
       fs.writeTimer += dt;
       let guard = 0;
@@ -446,7 +443,6 @@
         spawnMini(p.tx, p.ty, p.color);
         fs.written++;
         if (fs.written % 5 === 0) pop();        // occasional crack while writing
-        if (fs.written % 27 === 0) whistle();   // occasional whistle
       }
       if (!fs.queue.length) { fs.phase = "hold"; fs.holdT = 0; }
     } else if (fs.phase === "hold") {
@@ -720,23 +716,6 @@
     osc.connect(og).connect(audioCtx.destination);
     osc.start(now);
     osc.stop(now + 0.4);
-  }
-
-  // Rising whistle as a rocket climbs (classic firework "weeee").
-  function whistle() {
-    if (!soundOn || !audioCtx) return;
-    const now = audioCtx.currentTime;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(680, now);
-    o.frequency.exponentialRampToValueAtTime(1750, now + 0.6);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.07, now + 0.06);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.66);
-    o.connect(g).connect(audioCtx.destination);
-    o.start(now);
-    o.stop(now + 0.68);
   }
 
   // Louder, deeper explosion — used for the finale for contrast against pop().
