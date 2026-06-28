@@ -38,7 +38,7 @@ This repo is ready for GitHub Pages. After pushing:
 2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
 3. Pick branch **`main`** and folder **`/ (root)`**, then **Save**.
 4. Wait ~1 minute — your game will be live at
-   `https://jimmyardis.github.io/vinces-castle/`.
+   `https://jimmyardis.github.io/castle-fireworks-250/`.
 
 Because everything is inline and relative-pathed, it works identically on Pages and
 from a local `file://` open.
